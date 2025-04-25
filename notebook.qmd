@@ -1,0 +1,92 @@
+---
+title: "Assignment 7"
+author:
+  date: "2025-04-25"
+format: 
+  html:
+    embed-resources: true
+    theme: "pulse"
+    toc: true
+    toc-location: "left"
+    toc-depth: 6
+editor: source
+editor_options: 
+  markdown: 
+    wrap: 100
+---
+
+## Setting up the environment
+
+Here I load the required libraries and the `iris` dataset:
+
+```{r}
+#| warning: false
+library("tidyr")
+library("dplyr")
+loadNamespace("rmarkdown")
+
+data("iris")
+
+rmarkdown::paged_table(iris)
+```
+
+Then to convert the data to a long format:
+
+```{r}
+iris_long = iris %>%
+  tidyr::pivot_longer(cols = dplyr::matches("^(Petal|Sepal)"), names_to = "Trait", values_to = "Size")
+
+rmarkdown::paged_table(iris_long)
+```
+
+## Computations
+
+### Mean Sizes
+
+Very simple code computing the mean `Size`s grouped by `Species` and `Trait`s:
+
+```{r}
+#| warning: false
+iris_long_means = iris_long %>%
+  dplyr::group_by(Species, Trait) %>%
+  dplyr::summarise(Size.Mean = mean(Size))
+  
+rmarkdown::paged_table(iris_long_means)
+```
+
+### Largest in set
+
+Similar code as before, now with an added filter:
+
+```{r}
+#| warning: false
+iris_long_max = iris_long %>%
+  dplyr::filter(Species %in% c("virginica", "versicolor")) %>%
+  dplyr::group_by(Species, Trait) %>%
+  dplyr::summarise(Size.Max = max(Size))
+
+rmarkdown::paged_table(iris_long_max)
+```
+
+### Above the mean
+
+Here I'm reusing the previously computed means.
+I'm using a left join, although full/inner/right joins should produce the same results since the values I'm joining on overlap exactly.
+
+Afterwards I choose `Species` and `Trait`s to group by again.
+
+Next I summarize the data to add a column which is `TRUE` if a given size was above mean for the group, and filter the table to only leave rows where that value was true.
+
+Finally, I use the `dplyr::tally()` function to count the number of samples above mean in each group.
+
+```{r}
+#| warning: false
+iris_long_above_mean = iris_long %>%
+  dplyr::left_join(iris_long_means, by = join_by(Species, Trait)) %>%
+  dplyr::group_by(Species, Trait) %>%
+  dplyr::summarise(AboveMean = Size > Size.Mean) %>%
+  dplyr::filter(AboveMean) %>%
+  dplyr::tally(name = "AboveMean.Count")
+  
+rmarkdown::paged_table(iris_long_above_mean)
+```
